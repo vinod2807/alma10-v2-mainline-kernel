@@ -1,6 +1,6 @@
 Name:           kernel-mainline-v2
 Version:        7.2.3
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Vanilla mainline kernel rebuilt for AlmaLinux 10 x86_64_v2
 License:        GPLv2
 URL:            https://kernel.org
@@ -8,7 +8,7 @@ Source0:        https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-%{version}.ta
 Source1:        alma10-v2-base.config
 Source2:        lsmod-v2-pc.txt
 
-BuildRequires:  gcc, make, bison, flex, elfutils-libelf-devel, openssl, openssl-devel, bc, dwarves, rpm-build, python3, perl, rsync
+BuildRequires:  gcc, make, bison, flex, elfutils-libelf-devel, kmod, openssl, openssl-devel, bc, dwarves, rpm-build, python3, perl, rsync
 ExclusiveArch:  x86_64 x86_64_v2
 %global debug_package %{nil}
 
@@ -69,6 +69,8 @@ if [ -x /usr/sbin/grubby ]; then
 fi
 
 %changelog
+* Thu Sep 03 2026 Vinod <vinod@localhost> - 7.2.3-2
+- Add kmod to BuildRequires so depmod runs at build time (modules.dep present, dracut works in %post)
 * Thu Sep 03 2026 Vinod <vinod@localhost> - 7.2.3-1
 - Fix install section: rename unversioned vmlinuz/System.map from vanilla
   make install to versioned names and ship .config
