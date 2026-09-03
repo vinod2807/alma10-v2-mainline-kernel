@@ -22,6 +22,10 @@ cp %{SOURCE1} .config
 make olddefconfig
 scripts/config --set-str SYSTEM_TRUSTED_KEYS "" || :
 scripts/config --set-str MODULE_SIG_KEY "" || :
+# Vanilla tarball lacks distro kernel.sbat; no SecureBoot/shim here, drop SBAT.
+scripts/config --disable EFI_SBAT || :
+scripts/config --set-str EFI_SBAT_FILE "" || :
+make olddefconfig
 
 %build
 # No global -march here: it breaks arch/x86/boot real-mode code.

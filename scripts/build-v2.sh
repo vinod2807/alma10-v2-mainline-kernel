@@ -33,6 +33,10 @@ make olddefconfig
 scripts/config --set-str SYSTEM_TRUSTED_KEYS "" || true
 scripts/config --set-str SYSTEM_REVOCATION_KEYS "" || true
 scripts/config --set-str MODULE_SIG_KEY "" || true
+# Vanilla tarball lacks distro kernel.sbat (Alma sets EFI_SBAT_FILE="kernel.sbat").
+# We boot legacy BIOS without SecureBoot/shim, so drop SBAT entirely.
+scripts/config --disable EFI_SBAT || true
+scripts/config --set-str EFI_SBAT_FILE "" || true
 make olddefconfig
 grep -E "X86_64_VERSION|GENERIC_CPU|MCORE2|MPROCESSOR" .config || true
 
