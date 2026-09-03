@@ -26,19 +26,17 @@ cd "linux-${VER}"
 cp "$REPO_ROOT/config/alma10-v2-base.config" .config
 make olddefconfig
 
-# Force v2 microarch, drop distro signing keys (ephemeral build)
+# Drop distro signing keys (ephemeral build). Do NOT pass global
+# -march via KCFLAGS: it breaks arch/x86/boot real-mode code
+# (bzImage link failure). v2 baseline comes from the Alma v2 base
+# config above, which olddefconfig preserves.
 scripts/config --set-str SYSTEM_TRUSTED_KEYS "" || true
 scripts/config --set-str SYSTEM_REVOCATION_KEYS "" || true
 scripts/config --set-str MODULE_SIG_KEY "" || true
-# Prefer generic CPU with v2 level if option exists
-scripts/config --set-val CONFIG_X86_64_VERSION 2 2>/dev/null || true
 make olddefconfig
+grep -E "X86_64_VERSION|GENERIC_CPU|MCORE2|MPROCESSOR" .config || true
 
-export KCFLAGS="-march=x86-64-v2 -mtune=generic"
-export KCPPFLAGS="-march=x86-64-v2"
-echo "KCFLAGS=$KCFLAGS"
-
-make -j"$(nproc)" binrpm-pkg KCFLAGS="$KCFLAGS"
+make -j"$(nproc)" binrpm-pkg
 
 echo "== RPMs in ~/rpmbuild/RPMS/x86_64/ =="
 ls -lh ~/rpmbuild/RPMS/x86_64/ | tail -20

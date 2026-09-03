@@ -8,7 +8,7 @@ Source0:        https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-%{version}.ta
 Source1:        alma10-v2-base.config
 
 BuildRequires:  gcc, make, bison, flex, elfutils-libelf-devel, openssl-devel, bc, dwarves, rpm-build, python3, perl, rsync
-ExclusiveArch:  x86_64
+ExclusiveArch:  x86_64 x86_64_v2
 %global debug_package %{nil}
 
 %description
@@ -24,9 +24,10 @@ scripts/config --set-str SYSTEM_TRUSTED_KEYS "" || :
 scripts/config --set-str MODULE_SIG_KEY "" || :
 
 %build
-export KCFLAGS="-march=x86-64-v2 -mtune=generic"
-make -j$(nproc) KCFLAGS="$KCFLAGS"
-make modules KCFLAGS="$KCFLAGS"
+# No global -march here: it breaks arch/x86/boot real-mode code.
+# v2 baseline comes from the Alma v2 base config in %prep.
+make -j$(nproc)
+make modules
 
 %install
 mkdir -p %{buildroot}/boot %{buildroot}/lib/modules
