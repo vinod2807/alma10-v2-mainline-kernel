@@ -69,9 +69,8 @@ if [ -x /usr/sbin/grubby ]; then
 fi
 
 %changelog
-* Thu Sep 04 2026 Vinod <vinod@localhost> - 7.2.3-1
-- Fix %install: rename unversioned vmlinuz/System.map from vanilla
-  `make install` to versioned names and ship .config (fixes
-  "File not found: .../boot/vmlinuz-7.2.3" packaging failure)
-* Thu Sep 04 2026 Vinod <vinod@localhost> - 7.2.3-1
+* Thu Sep 03 2026 Vinod <vinod@localhost> - 7.2.3-1
+- Fix install section: rename unversioned vmlinuz/System.map from vanilla
+  make install to versioned names and ship .config
+* Thu Sep 03 2026 Vinod <vinod@localhost> - 7.2.3-1
 - Initial starter spec for Alma10 v2
