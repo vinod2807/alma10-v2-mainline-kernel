@@ -34,13 +34,10 @@ if [ -f "$REPO_ROOT/config/lsmod-v2-pc.txt" ]; then
 fi
 make olddefconfig
 
-# Drop distro signing keys (ephemeral build). Do NOT pass global
-# -march via KCFLAGS: it breaks arch/x86/boot real-mode code
-# (bzImage link failure). v2 baseline comes from the Alma v2 base
-# config above, which olddefconfig preserves.
+# Drop distro revocation keys (ephemeral build). Leave MODULE_SIG_KEY at its
+# default (certs/signing_key.pem auto-generates); emptying it breaks sign-file.
 scripts/config --set-str SYSTEM_TRUSTED_KEYS "" || true
 scripts/config --set-str SYSTEM_REVOCATION_KEYS "" || true
-scripts/config --set-str MODULE_SIG_KEY "" || true
 # Vanilla tarball lacks distro kernel.sbat (Alma sets EFI_SBAT_FILE="kernel.sbat").
 # We boot legacy BIOS without SecureBoot/shim, so drop SBAT entirely.
 for opt in EFI_SBAT DEBUG_INFO DEBUG_INFO_BTF DEBUG_INFO_BTF_MODULES; do

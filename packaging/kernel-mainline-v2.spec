@@ -24,7 +24,7 @@ cp %{SOURCE1} .config
 yes "" | make LSMOD=%{SOURCE2} localmodconfig
 make olddefconfig
 scripts/config --set-str SYSTEM_TRUSTED_KEYS "" || :
-scripts/config --set-str MODULE_SIG_KEY "" || :
+# Leave MODULE_SIG_KEY at default (auto-generates); emptying it breaks sign-file.
 # Vanilla tarball lacks distro kernel.sbat; no SecureBoot/shim here, drop SBAT.
 # Skip DWARF+BTF debug info for build speed (personal kernel).
 for opt in EFI_SBAT DEBUG_INFO DEBUG_INFO_BTF DEBUG_INFO_BTF_MODULES; do
