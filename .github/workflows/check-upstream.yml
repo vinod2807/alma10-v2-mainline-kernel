@@ -1,0 +1,55 @@
+name: check-upstream
+
+on:
+  schedule:
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch latest stable from kernel.org
+        id: korg
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, os
+          url = "https://www.kernel.org/releases.json"
+          d = json.load(urllib.request.urlopen(url, timeout=30))
+          # prefer is最新 stable where moniker == "stable"
+          stable = [r for r in d["releases"] if r.get("moniker") == "stable"]
+          # releases.json is newest-first; take first stable
+          ver = stable[0]["version"]
+          print(f"latest={ver}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"latest={ver}\n")
+          PY
+      - name: Compare with VERSION
+        id: cmp
+        run: |
+          cur=$(cat VERSION | tr -d ' \n')
+          echo "current=$cur latest=${{ steps.korg.outputs.latest }}"
+          if [ "$cur" != "${{ steps.korg.outputs.latest }}" ]; then
+            echo "bump=true" >> $GITHUB_OUTPUT
+          else
+            echo "bump=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Bump VERSION, commit and tag
+        if: steps.cmp.outputs.bump == 'true'
+        run: |
+          set -e
+          ver="${{ steps.korg.outputs.latest }}"
+          echo "$ver" > VERSION
+          # keep spec in sync
+          sed -i "s/^Version:.*/Version:        $ver/" packaging/kernel-mainline-v2.spec
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add VERSION packaging/kernel-mainline-v2.spec
+          git commit -m "chore: bump kernel to $ver"
+          git tag "v$ver"
+          git push origin HEAD:main
+          git push origin "v$ver"

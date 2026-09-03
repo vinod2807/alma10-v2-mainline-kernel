@@ -1,0 +1,32 @@
+name: build-rpm
+
+on:
+  push:
+    tags:
+      - 'v*'
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Kernel version (default: VERSION file)'
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: almalinux:10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build deps
+        run: dnf install -y gcc make bison flex elfutils-libelf-devel openssl-devel bc dwarves rpm-build python3 perl rsync openssl diffutils findutils
+      - name: Build v2 RPM
+        run: |
+          ver="${{ inputs.version }}"
+          if [ -z "$ver" ]; then ver=$(cat VERSION | tr -d ' \n'); fi
+          bash scripts/build-v2.sh "$ver"
+      - name: Upload RPMs
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-rpms
+          path: ~/rpmbuild/RPMS/**/*.rpm
