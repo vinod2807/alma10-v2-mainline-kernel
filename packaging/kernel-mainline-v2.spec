@@ -9,6 +9,7 @@ Source1:        alma10-v2-base.config
 
 BuildRequires:  gcc, make, bison, flex, elfutils-libelf-devel, openssl-devel, bc, dwarves, rpm-build, python3, perl, rsync
 ExclusiveArch:  x86_64
+%global debug_package %{nil}
 
 %description
 Starter spec for v2-only builders. Forces -march=x86-64-v2 and Alma stock
@@ -37,7 +38,7 @@ rm -f %{buildroot}/lib/modules/%{version}/build %{buildroot}/lib/modules/%{versi
 %files
 /boot/vmlinuz-%{version}
 /boot/System.map-%{version}
-/boot/config-%{version} || :
+/boot/config-%{version}
 /lib/modules/%{version}/
 
 %post
