@@ -1,11 +1,8 @@
 name: build-rpm
 
 on:
-  push:
-    tags:
-      - 'v*'
-    branches:
-      - main
+  # Manual only: COPR (webhook on push/tag) is the real build pipeline.
+  # Kept for debugging without burning ~25min per push.
   workflow_dispatch:
     inputs:
       version:
