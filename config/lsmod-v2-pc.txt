@@ -1,0 +1,115 @@
+Module                  Size  Used by
+binfmt_misc            28672  1
+overlay               245760  0
+vfat                   28672  0
+fat                   114688  1 vfat
+uinput                 24576  0
+snd_seq_dummy          12288  0
+snd_hrtimer            12288  1
+nft_fib_inet           12288  1
+nft_fib_ipv4           12288  1 nft_fib_inet
+nft_fib_ipv6           12288  1 nft_fib_inet
+nft_fib                12288  3 nft_fib_ipv6,nft_fib_ipv4,nft_fib_inet
+nft_reject_inet        12288  10
+nf_reject_ipv4         16384  1 nft_reject_inet
+nf_reject_ipv6         20480  1 nft_reject_inet
+nft_reject             12288  1 nft_reject_inet
+nft_ct                 28672  8
+nft_chain_nat          12288  3
+nf_nat                 69632  1 nft_chain_nat
+nf_conntrack          208896  2 nf_nat,nft_ct
+nf_defrag_ipv6         24576  1 nf_conntrack
+nf_defrag_ipv4         12288  1 nf_conntrack
+nf_tables             405504  307 nft_ct,nft_reject_inet,nft_fib_ipv6,nft_fib_ipv4,nft_chain_nat,nft_reject,nft_fib,nft_fib_inet
+qrtr                   57344  2
+rfkill                 40960  3
+intel_powerclamp       24576  0
+coretemp               20480  0
+kvm_intel             520192  0
+snd_hda_codec_intelhdmi    28672  1
+snd_hda_codec_hdmi     65536  1 snd_hda_codec_intelhdmi
+kvm                  1400832  1 kvm_intel
+snd_hda_codec_alc662    20480  1
+snd_hda_codec_realtek_lib    65536  1 snd_hda_codec_alc662
+gpio_ich               16384  0
+snd_hda_codec_generic   118784  2 snd_hda_codec_alc662,snd_hda_codec_realtek_lib
+iTCO_wdt               16384  0
+iTCO_vendor_support    12288  1 iTCO_wdt
+snd_hda_intel          69632  4
+snd_hda_codec         229376  6 snd_hda_codec_generic,snd_hda_codec_hdmi,snd_hda_intel,snd_hda_codec_alc662,snd_hda_codec_realtek_lib,snd_hda_codec_intelhdmi
+irqbypass              12288  1 kvm
+intel_cstate           24576  0
+intel_uncore          274432  0
+snd_hda_core          151552  7 snd_hda_codec_generic,snd_hda_codec_hdmi,snd_hda_intel,snd_hda_codec_alc662,snd_hda_codec,snd_hda_codec_realtek_lib,snd_hda_codec_intelhdmi
+snd_intel_dspcfg       45056  1 snd_hda_intel
+snd_intel_sdw_acpi     16384  1 snd_intel_dspcfg
+snd_hwdep              24576  1 snd_hda_codec
+i2c_i801               40960  0
+pcspkr                 12288  0
+i2c_smbus              20480  1 i2c_i801
+snd_seq               135168  7 snd_seq_dummy
+snd_seq_device         16384  1 snd_seq
+snd_pcm               200704  5 snd_hda_codec_hdmi,snd_hda_intel,snd_hda_codec,snd_hda_core
+lpc_ich                32768  0
+snd_timer              57344  3 snd_seq,snd_hrtimer,snd_pcm
+snd                   155648  19 snd_hda_codec_generic,snd_seq,snd_seq_device,snd_hda_codec_hdmi,snd_hwdep,snd_hda_intel,snd_hda_codec,snd_timer,snd_hda_codec_realtek_lib,snd_pcm
+soundcore              16384  1 snd
+joydev                 28672  0
+sg                     53248  0
+loop                   45056  0
+ext4                 1187840  1
+mbcache                16384  1 ext4
+jbd2                  208896  1 ext4
+sd_mod                 90112  1
+ata_generic            12288  0
+i915                 4923392  8
+crct10dif_pclmul       12288  1
+i2c_algo_bit           20480  1 i915
+ata_piix               45056  1
+crc32_pclmul           12288  0
+drm_buddy              32768  1 i915
+crc32c_intel           12288  0
+video                  81920  1 i915
+r8169                 147456  0
+ghash_clmulni_intel    16384  0
+wmi                    32768  1 video
+libata                512000  2 ata_piix,ata_generic
+realtek                57344  1
+ttm                   131072  1 i915
+serio_raw              20480  0
+intel_gtt              28672  1 i915
+drm_display_helper    319488  1 i915
+nvme_tcp              102400  0
+nvme_fabrics           49152  1 nvme_tcp
+cec                    81920  2 drm_display_helper,i915
+nvme_core             262144  2 nvme_tcp,nvme_fabrics
+nvme_keyring           20480  3 nvme_tcp,nvme_core,nvme_fabrics
+nvme_auth              32768  1 nvme_core
+btrfs                2256896  0
+blake2b_generic        24576  0
+xor                    24576  1 btrfs
+zstd_compress         540672  1 btrfs
+raid6_pq              122880  1 btrfs
+sunrpc                913408  1
+dm_mirror              28672  0
+dm_region_hash         28672  1 dm_mirror
+dm_log                 24576  2 dm_region_hash,dm_mirror
+be2iscsi              204800  0
+iscsi_boot_sysfs       20480  1 be2iscsi
+bnx2i                  94208  0
+cnic                   90112  1 bnx2i
+uio                    32768  1 cnic
+cxgb4i                 69632  0
+cxgb4                 684032  1 cxgb4i
+tls                   163840  1 cxgb4
+libcxgbi              114688  1 cxgb4i
+libcxgb                32768  1 libcxgbi
+iscsi_tcp              32768  0
+libiscsi_tcp           45056  3 libcxgbi,iscsi_tcp,cxgb4i
+libiscsi               94208  6 be2iscsi,libiscsi_tcp,bnx2i,libcxgbi,iscsi_tcp,cxgb4i
+scsi_transport_iscsi   196608  6 be2iscsi,libiscsi_tcp,bnx2i,libcxgbi,iscsi_tcp,libiscsi
+fuse                  253952  5
+dm_multipath           53248  0
+dm_mod                249856  3 dm_multipath,dm_log,dm_mirror
+i2c_dev                28672  0
+nfnetlink              20480  3 nf_tables

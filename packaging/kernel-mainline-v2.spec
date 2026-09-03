@@ -6,6 +6,7 @@ License:        GPLv2
 URL:            https://kernel.org
 Source0:        https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-%{version}.tar.xz
 Source1:        alma10-v2-base.config
+Source2:        lsmod-v2-pc.txt
 
 BuildRequires:  gcc, make, bison, flex, elfutils-libelf-devel, openssl-devel, bc, dwarves, rpm-build, python3, perl, rsync
 ExclusiveArch:  x86_64 x86_64_v2
@@ -19,11 +20,16 @@ policies). Pair with .copr/Makefile (make_srpm) + COPR webhook.
 %prep
 %setup -q -n linux-%{version}
 cp %{SOURCE1} .config
+# Trim to target PC's loaded modules (Source2 captured via `lsmod` on that box).
+yes "" | make LSMOD=%{SOURCE2} localmodconfig
 make olddefconfig
 scripts/config --set-str SYSTEM_TRUSTED_KEYS "" || :
 scripts/config --set-str MODULE_SIG_KEY "" || :
 # Vanilla tarball lacks distro kernel.sbat; no SecureBoot/shim here, drop SBAT.
-scripts/config --disable EFI_SBAT || :
+# Skip DWARF+BTF debug info for build speed (personal kernel).
+for opt in EFI_SBAT DEBUG_INFO DEBUG_INFO_BTF DEBUG_INFO_BTF_MODULES; do
+  scripts/config --disable $opt || :
+done
 scripts/config --set-str EFI_SBAT_FILE "" || :
 make olddefconfig
 

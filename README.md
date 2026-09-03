@@ -31,6 +31,21 @@ COPR one-time setup (web UI at copr.fedorainfracloud.org):
 3. Add package SCM: clone URL of this repo, spec `packaging/kernel-mainline-v2.spec`, method `make_srpm` (uses `.copr/Makefile`), check `webhook rebuild`.
 4. Settings → Integrations: copy webhook URL → GitHub repo Settings → Webhooks → Add (pushes + tag creation, `application/json`).
 
+## Fast trimmed build (this PC only)
+
+`config/lsmod-v2-pc.txt` (`115` loaded modules) + `make localmodconfig` trims the
+full Alma config (thousands of modules, ~1h+) down to this machine's hardware
+(~10-15min). DWARF/BTF debug info and SBAT are also disabled (legacy BIOS box,
+no SecureBoot/shim, personal kernel).
+
+Refresh after plugging in every device you use (USB, etc.) — unplugged hardware
+has no driver in a trimmed build:
+```bash
+lsmod > config/lsmod-v2-pc.txt
+git add config/lsmod-v2-pc.txt && git commit -m "chore: refresh lsmod" && git push
+```
+Delete `config/lsmod-v2-pc.txt` to fall back to the full (slow) Alma config build.
+
 ## Manual build (GitHub Actions artifact or local)
 
 ```bash

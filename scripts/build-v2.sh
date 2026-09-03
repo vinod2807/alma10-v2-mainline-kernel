@@ -22,8 +22,13 @@ rm -rf "linux-${VER}"
 tar xf "$TARBALL"
 cd "linux-${VER}"
 
-# Base on Alma v2 stock config
+# Base on Alma v2 stock config, then trim to this PC's loaded modules
+# (config/lsmod-v2-pc.txt captured via `lsmod` on the target box).
+# Full Alma config = thousands of modules (~1h+); trimmed = ~115 modules (~10-15min).
 cp "$REPO_ROOT/config/alma10-v2-base.config" .config
+if [ -f "$REPO_ROOT/config/lsmod-v2-pc.txt" ]; then
+  yes "" | make LSMOD="$REPO_ROOT/config/lsmod-v2-pc.txt" localmodconfig
+fi
 make olddefconfig
 
 # Drop distro signing keys (ephemeral build). Do NOT pass global
@@ -35,7 +40,9 @@ scripts/config --set-str SYSTEM_REVOCATION_KEYS "" || true
 scripts/config --set-str MODULE_SIG_KEY "" || true
 # Vanilla tarball lacks distro kernel.sbat (Alma sets EFI_SBAT_FILE="kernel.sbat").
 # We boot legacy BIOS without SecureBoot/shim, so drop SBAT entirely.
-scripts/config --disable EFI_SBAT || true
+for opt in EFI_SBAT DEBUG_INFO DEBUG_INFO_BTF DEBUG_INFO_BTF_MODULES; do
+  scripts/config --disable "$opt" || true
+done
 scripts/config --set-str EFI_SBAT_FILE "" || true
 make olddefconfig
 grep -E "X86_64_VERSION|GENERIC_CPU|MCORE2|MPROCESSOR" .config || true
