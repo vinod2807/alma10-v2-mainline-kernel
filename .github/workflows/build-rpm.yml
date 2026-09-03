@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build deps
-        run: dnf install -y gcc make bison flex elfutils-libelf-devel openssl-devel bc dwarves rpm-build python3 perl rsync openssl diffutils findutils
+        run: dnf install -y gcc make bison flex elfutils-libelf-devel elfutils-devel openssl-devel bc dwarves rpm-build python3 perl rsync openssl diffutils findutils
       - name: Build v2 RPM
         run: |
           ver="${{ inputs.version }}"
