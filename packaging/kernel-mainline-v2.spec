@@ -43,6 +43,14 @@ make modules
 mkdir -p %{buildroot}/boot %{buildroot}/lib/modules
 make INSTALL_PATH=%{buildroot}/boot install
 make INSTALL_MOD_PATH=%{buildroot} modules_install
+# Vanilla `make install` writes unversioned names (vmlinuz, System.map);
+# rename to the versioned names %files expects, and ship the .config used.
+for f in vmlinuz System.map; do
+  if [ ! -f %{buildroot}/boot/$f-%{version} -a -f %{buildroot}/boot/$f ]; then
+    mv %{buildroot}/boot/$f %{buildroot}/boot/$f-%{version}
+  fi
+done
+cp .config %{buildroot}/boot/config-%{version}
 # remove build symlinks that break RPM
 rm -f %{buildroot}/lib/modules/%{version}/build %{buildroot}/lib/modules/%{version}/source || :
 
@@ -61,5 +69,9 @@ if [ -x /usr/sbin/grubby ]; then
 fi
 
 %changelog
+* Thu Sep 04 2026 Vinod <vinod@localhost> - 7.2.3-1
+- Fix %install: rename unversioned vmlinuz/System.map from vanilla
+  `make install` to versioned names and ship .config (fixes
+  "File not found: .../boot/vmlinuz-7.2.3" packaging failure)
 * Thu Sep 04 2026 Vinod <vinod@localhost> - 7.2.3-1
 - Initial starter spec for Alma10 v2
