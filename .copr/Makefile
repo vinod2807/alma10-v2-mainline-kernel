@@ -3,7 +3,8 @@
 
 TOP := $(dir $(lastword $(MAKEFILE_LIST)))/..
 VER := $(shell cat $(TOP)/VERSION | tr -d ' \n')
-OUTDIR ?= /tmp
+outdir ?= /tmp
+OUTDIR ?= $(outdir)
 
 srpm:
 	set -e; \
