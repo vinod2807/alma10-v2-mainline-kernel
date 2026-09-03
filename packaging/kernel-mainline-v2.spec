@@ -8,7 +8,7 @@ Source0:        https://cdn.kernel.org/pub/linux/kernel/v7.x/linux-%{version}.ta
 Source1:        alma10-v2-base.config
 Source2:        lsmod-v2-pc.txt
 
-BuildRequires:  gcc, make, bison, flex, elfutils-libelf-devel, openssl-devel, bc, dwarves, rpm-build, python3, perl, rsync
+BuildRequires:  gcc, make, bison, flex, elfutils-libelf-devel, openssl, openssl-devel, bc, dwarves, rpm-build, python3, perl, rsync
 ExclusiveArch:  x86_64 x86_64_v2
 %global debug_package %{nil}
 
