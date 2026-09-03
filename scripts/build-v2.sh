@@ -27,7 +27,10 @@ cd "linux-${VER}"
 # Full Alma config = thousands of modules (~1h+); trimmed = ~115 modules (~10-15min).
 cp "$REPO_ROOT/config/alma10-v2-base.config" .config
 if [ -f "$REPO_ROOT/config/lsmod-v2-pc.txt" ]; then
+  # yes exits SIGPIPE(141) once kconfig closes stdin; not a failure (pipefail off here)
+  set +o pipefail
   yes "" | make LSMOD="$REPO_ROOT/config/lsmod-v2-pc.txt" localmodconfig
+  set -o pipefail
 fi
 make olddefconfig
 
