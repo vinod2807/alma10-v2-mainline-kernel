@@ -211,11 +211,8 @@ Source40: filter-modules.sh
 
 Source2002: kvm_stat.logrotate
 
-# Do not package the source tarball.
-# To build .src.rpm, run with '--with src'
-%if %{?_with_src:0}%{!?_with_src:1}
-NoSource: 0
-%endif
+# v2-COPR: always package Source0 tarball (COPR binary chroot has no network
+# for NoSource fetch, and does not pass --with src on its internal rpmbuild -bs).
 
 %description
 The %{name} meta package.
