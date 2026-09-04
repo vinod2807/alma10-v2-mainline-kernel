@@ -594,7 +594,7 @@ cp -a %{SOURCE2} .
 sed -i "s@^EXTRAVERSION.*@EXTRAVERSION = -%{release}.%{_target_cpu}@" Makefile
 
 %ifarch x86_64 || aarch64
-cp config-%{version}-%{_target_cpu} .config
+cp config-%{version}-%{_target_cpu} .config 2>/dev/null || cp config-%{version}-x86_64 .config
 %{__make} -s ARCH=%{bldarch} listnewconfig | grep -E '^CONFIG_' > newoptions-el-%{_target_cpu}.txt || true
 if [ -s newoptions-el10-%{_target_cpu}.txt ]; then
 	cat newoptions-el10-%{_target_cpu}.txt
@@ -616,7 +616,7 @@ popd > /dev/null
 pushd linux-%{KVERREL} > /dev/null
 
 %ifarch x86_64 || aarch64
-cp config-%{version}-%{_target_cpu} .config
+cp config-%{version}-%{_target_cpu} .config 2>/dev/null || cp config-%{version}-x86_64 .config
 
 %{__make} -s ARCH=%{bldarch} oldconfig
 
