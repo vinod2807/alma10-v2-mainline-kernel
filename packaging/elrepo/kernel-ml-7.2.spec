@@ -111,6 +111,13 @@
 %define with_doc 0
 %endif
 
+# v2-COPR: perf bpftool bootstrap fails in v2 chroots (both); skip perf/tools,
+# keep core/modules/devel. Re-enable later with fixed toolchain.
+%if "%{_target_cpu}" == "x86_64_v2"
+%define with_perf 0
+%define with_tools 0
+%endif
+
 %ifarch x86_64
 %define asmarch x86
 %define bldarch x86_64
