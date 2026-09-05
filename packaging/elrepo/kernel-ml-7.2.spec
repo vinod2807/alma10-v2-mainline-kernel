@@ -49,7 +49,7 @@
 ### BCAT
 
 # Compress modules on all architectures that build modules.
-%ifarch x86_64 || aarch64
+%ifarch x86_64 x86_64_v2 || aarch64
 %global zipmodules 1
 %else
 %global zipmodules 0
@@ -107,7 +107,7 @@
 %define with_vdso_install 0
 %endif
 
-%ifarch x86_64 || aarch64
+%ifarch x86_64 x86_64_v2 || aarch64
 %define with_doc 0
 %endif
 
@@ -118,7 +118,7 @@
 %define with_tools 0
 %endif
 
-%ifarch x86_64
+%ifarch x86_64 x86_64_v2
 %define asmarch x86
 %define bldarch x86_64
 %define hdrarch x86_64
@@ -556,7 +556,7 @@ device input and output, etc.
 %global make %{__make} -s HOSTCFLAGS="%{?build_cflags}" HOSTLDFLAGS="%{?build_ldflags}"
 
 %prep
-%ifarch x86_64 || aarch64
+%ifarch x86_64 x86_64_v2 || aarch64
 %if %{with_baseonly}
 %if !%{with_std}
 echo "Cannot build --with baseonly as the standard build is currently disabled."
@@ -600,7 +600,7 @@ cp -a %{SOURCE2} .
 # Set the EXTRAVERSION string in the top level Makefile.
 sed -i "s@^EXTRAVERSION.*@EXTRAVERSION = -%{release}.%{_target_cpu}@" Makefile
 
-%ifarch x86_64 || aarch64
+%ifarch x86_64 x86_64_v2 || aarch64
 cp config-%{version}-%{_target_cpu} .config 2>/dev/null || cp config-%{version}-x86_64 .config
 %{__make} -s ARCH=%{bldarch} listnewconfig | grep -E '^CONFIG_' > newoptions-el-%{_target_cpu}.txt || true
 if [ -s newoptions-el10-%{_target_cpu}.txt ]; then
@@ -622,7 +622,7 @@ popd > /dev/null
 %build
 pushd linux-%{KVERREL} > /dev/null
 
-%ifarch x86_64 || aarch64
+%ifarch x86_64 x86_64_v2 || aarch64
 cp config-%{version}-%{_target_cpu} .config 2>/dev/null || cp config-%{version}-x86_64 .config
 
 %{__make} -s ARCH=%{bldarch} oldconfig
@@ -669,7 +669,7 @@ chmod +x tools/perf/check-headers.sh
 chmod +x tools/power/cpupower/utils/version-gen.sh
 %{tools_make} %{?_smp_mflags} -C tools/power/cpupower CPUFREQ_BENCH=false DEBUG=false
 
-%ifarch x86_64
+%ifarch x86_64 x86_64_v2
    pushd tools/power/cpupower/debug/x86_64
    %{tools_make} centrino-decode powernow-k8-decode
    popd
@@ -737,7 +737,7 @@ pushd linux-%{KVERREL} > /dev/null
 
 rm -fr %{buildroot}
 
-%ifarch x86_64 || aarch64
+%ifarch x86_64 x86_64_v2 || aarch64
 mkdir -p %{buildroot}
 
 %if %{with_std}
@@ -898,7 +898,7 @@ cp -a --parents arch/arm/include/asm/opcodes.h %{buildroot}/lib/modules/%{KVERRE
 
 cp -a include %{buildroot}/lib/modules/%{KVERREL}/build/include
 
-%ifarch x86_64
+%ifarch x86_64 x86_64_v2
 # Files required for 'make prepare' to succeed with kernel-ml-devel.
 cp -a --parents arch/x86/entry/syscalls/syscall_32.tbl %{buildroot}/lib/modules/%{KVERREL}/build/
 cp -a --parents arch/x86/entry/syscalls/syscall_64.tbl %{buildroot}/lib/modules/%{KVERREL}/build/
@@ -1127,7 +1127,7 @@ rm -fr %{buildroot}%{_libdir}/traceevent
 %find_lang cpupower
 mv cpupower.lang ../
 
-%ifarch x86_64
+%ifarch x86_64 x86_64_v2
 pushd tools/power/cpupower/debug/x86_64 > /dev/null
 %{__install} -m755 centrino-decode %{buildroot}%{_bindir}/centrino-decode
 %{__install} -m755 powernow-k8-decode %{buildroot}%{_bindir}/powernow-k8-decode
@@ -1137,7 +1137,7 @@ popd > /dev/null
 chmod 0755 %{buildroot}%{_libdir}/libcpupower.so*
 mkdir -p %{buildroot}%{_unitdir} %{buildroot}%{_sysconfdir}/sysconfig
 
-%ifarch x86_64
+%ifarch x86_64 x86_64_v2
 mkdir -p %{buildroot}%{_mandir}/man8
 pushd tools/power/x86/x86_energy_perf_policy > /dev/null
 %{__make} -s %{?_smp_mflags} DESTDIR=%{buildroot} install
@@ -1401,12 +1401,12 @@ fi
 %files -n %{name}-tools -f cpupower.lang
 %{_bindir}/cpupower
 %{_datadir}/bash-completion/completions/cpupower
-%ifarch x86_64
+%ifarch x86_64 x86_64_v2
 %{_bindir}/centrino-decode
 %{_bindir}/powernow-k8-decode
 %endif
 %{_mandir}/man[1-8]/cpupower*
-%ifarch x86_64
+%ifarch x86_64 x86_64_v2
 %{_bindir}/x86_energy_perf_policy
 %{_mandir}/man8/x86_energy_perf_policy*
 %{_bindir}/turbostat
@@ -1466,7 +1466,7 @@ fi
 %endif
 
 # Empty meta-package.
-%ifarch x86_64 || aarch64
+%ifarch x86_64 x86_64_v2 || aarch64
 %files
 %endif
 
