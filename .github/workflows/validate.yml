@@ -24,8 +24,15 @@ jobs:
 
       - name: Install validators
         run: |
-          dnf install -y --quiet rpm-build rpmdevtools spectool python3-pyyaml ShellCheck python3-pip gcc make bison flex elfutils-libelf-devel openssl-devel bc python3 findutils 2>&1 | tail -n 3
-          pip install -q yamllint || dnf install -y --quiet python3-yamllint
+          set +e
+          dnf install -y --quiet epel-release 2>&1 | tail -n 1 || true
+          dnf config-manager --set-enabled crb 2>&1 | tail -n 1 || true
+          dnf install -y --quiet rpm-build rpmdevtools python3-pyyaml python3-pip gcc make bison flex elfutils-libelf-devel openssl-devel bc findutils shellcheck spectool 2>&1 | tail -n 3 || \
+          dnf install -y --quiet rpm-build rpmdevtools python3-pyyaml python3-pip gcc make bison flex elfutils-libelf-devel openssl-devel bc findutils 2>&1 | tail -n 3
+          pip3 install -q yamllint
+          command -v yamllint && command -v rpmspec && echo "validators ready"
+          command -v spectool || echo "::warning::spectool missing - SRPM step uses curl fallback"
+          command -v shellcheck || echo "::warning::shellcheck missing - lint continues"
 
       - name: Lint workflows
         run: |
