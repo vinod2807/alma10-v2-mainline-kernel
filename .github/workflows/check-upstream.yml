@@ -8,11 +8,17 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: check-upstream
+  cancel-in-progress: false
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Fetch latest stable from kernel.org
         id: korg
         run: |
@@ -20,9 +26,9 @@ jobs:
           import json, urllib.request, os
           url = "https://www.kernel.org/releases.json"
           d = json.load(urllib.request.urlopen(url, timeout=30))
-          # prefer is最新 stable where moniker == "stable"
           stable = [r for r in d["releases"] if r.get("moniker") == "stable"]
-          # releases.json is newest-first; take first stable
+          if not stable:
+              raise SystemExit("no stable release found in releases.json")
           ver = stable[0]["version"]
           print(f"latest={ver}")
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -34,22 +40,91 @@ jobs:
           cur=$(cat VERSION | tr -d ' \n')
           echo "current=$cur latest=${{ steps.korg.outputs.latest }}"
           if [ "$cur" != "${{ steps.korg.outputs.latest }}" ]; then
-            echo "bump=true" >> $GITHUB_OUTPUT
+            echo "bump=true" >> "$GITHUB_OUTPUT"
           else
-            echo "bump=false" >> $GITHUB_OUTPUT
+            echo "bump=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Bump VERSION, commit and tag
         if: steps.cmp.outputs.bump == 'true'
         run: |
-          set -e
+          set -euo pipefail
           ver="${{ steps.korg.outputs.latest }}"
+          cur=$(cat VERSION | tr -d ' \n')
           echo "$ver" > VERSION
-          # keep spec in sync
-          sed -i "s/^Version:.*/Version:        $ver/" packaging/kernel-mainline-v2.spec
+          echo "bumping $cur -> $ver"
+
+          # 1. Discover spec dynamically - never hardcode the filename.
+          #    Supports packaging/elrepo/kernel-ml-*.spec renames (e.g. 7.2 -> 7.3).
+          specs=(packaging/elrepo/kernel-ml-*.spec)
+          if [ ! -f "${specs[0]}" ]; then
+            echo "::error::no spec found matching packaging/elrepo/kernel-ml-*.spec"
+            exit 1
+          fi
+          if [ "${#specs[@]}" -ne 1 ]; then
+            echo "::error::ambiguous specs: ${specs[*]} - keep exactly one"
+            exit 1
+          fi
+          SPEC="${specs[0]}"
+          echo "SPEC=$SPEC"
+
+          # 2. ELRepo spec tracks version via '%global LKAver', not 'Version:'.
+          if ! grep -qE '^%global LKAver ' "$SPEC"; then
+            echo "::error::$SPEC has no '^%global LKAver ' line"
+            exit 1
+          fi
+          sed -i -E "s/^%global LKAver .*/%global LKAver $ver/" "$SPEC"
+          grep -E '^%global LKAver ' "$SPEC"
+
+          # 3. Keep Source0 kernel major (v7.x / v8.x) in sync for future major bumps.
+          #    Anchored to ^Source0: so changelog history is never rewritten.
+          major="${ver%%.*}"
+          sed -i -E "/^Source0:/ s@v[0-9]+\.x@v${major}.x@" "$SPEC"
+          grep -E '^Source0:' "$SPEC"
+
+          # 4. Roll config files forward: config-<old>-* -> config-<new>-*.
+          #    Build requires config-%{version}-x86_64, so a missing rename breaks COPR.
+          rolled=""
+          for f in packaging/elrepo/config-"$cur"-*; do
+            [ -e "$f" ] || continue
+            new="${f/$cur/$ver}"
+            if [ ! -e "$new" ]; then
+              cp -v "$f" "$new"
+              rolled="$rolled $new"
+            fi
+          done
+          # Fallback: if old-versioned config didn't exist (manual layout drift),
+          # copy the newest config-*-x86_64 as the new version.
+          if [ -z "$rolled" ] && ! ls packaging/elrepo/config-"$ver"-* >/dev/null 2>&1; then
+            latest_cfg=$(ls -1 packaging/elrepo/config-*-x86_64 2>/dev/null | sort -V | tail -n1 || true)
+            if [ -n "$latest_cfg" ]; then
+              arch_suffix="${latest_cfg##*/config-*-}"
+              # arch_suffix extraction above is best-effort; default to x86_64
+              cp -v "$latest_cfg" "packaging/elrepo/config-$ver-x86_64"
+            else
+              echo "::error::no config file to roll forward for $ver"
+              exit 1
+            fi
+          fi
+          ls -l packaging/elrepo/config-"$ver"-* || { echo "::error::missing config for $ver after roll"; exit 1; }
+
+          # 5. Validate before committing.
+          grep -qF "%global LKAver $ver" "$SPEC"
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add VERSION packaging/kernel-mainline-v2.spec
+          git add VERSION "$SPEC" packaging/elrepo/config-"$ver"-*
+          # Also pick up a spec rename if a future bump renames the file.
+          git add -A packaging/elrepo || true
+          if git diff --cached --quiet; then
+            echo "nothing to commit"
+            exit 0
+          fi
           git commit -m "chore: bump kernel to $ver"
-          git tag "v$ver"
+          if git rev-parse "v$ver" >/dev/null 2>&1; then
+            echo "tag v$ver already exists, skipping tag creation"
+          else
+            git tag "v$ver"
+          fi
+          git pull --rebase origin main || true
           git push origin HEAD:main
-          git push origin "v$ver"
+          git push origin "v$ver" || true
