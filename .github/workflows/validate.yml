@@ -24,7 +24,8 @@ jobs:
 
       - name: Install validators
         run: |
-          dnf install -y --quiet rpm-build rpmdevtools spectool python3-pyyaml ShellCheck yamllint gcc make bison flex elfutils-libelf-devel openssl-devel bc python3 findutils 2>&1 | tail -n 3
+          dnf install -y --quiet rpm-build rpmdevtools spectool python3-pyyaml ShellCheck python3-pip gcc make bison flex elfutils-libelf-devel openssl-devel bc python3 findutils 2>&1 | tail -n 3
+          pip install -q yamllint || dnf install -y --quiet python3-yamllint
 
       - name: Lint workflows
         run: |
