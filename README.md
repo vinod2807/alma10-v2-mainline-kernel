@@ -9,7 +9,7 @@ ELRepo EL10 `kernel-ml` targets `x86_64_v3` and will not boot here. This repo bu
 - `VERSION` – current tracked stable (e.g. `7.2.3`)
 - `config/alma10-v2-base.config` – stock Alma 10.2 v2 config as base
 - `scripts/build-v2.sh` – local / CI build via `make binrpm-pkg`
-- `packaging/kernel-mainline-v2.spec` – COPR SCM spec (starter, iterates to full dracut/BLS support)
+- `packaging/elrepo/kernel-ml-*.spec` – COPR ELRepo spec (version tracked via `%global LKAver`, auto-bumped by check-upstream)
 - `.copr/Makefile` – COPR `make_srpm` method
 - `.github/workflows/check-upstream.yml` – daily cron, bumps VERSION + tags on new kernel.org stable
 - `.github/workflows/build-rpm.yml` – builds RPM artifact on push/tag
@@ -28,7 +28,7 @@ sudo dnf update -y
 COPR one-time setup (web UI at copr.fedorainfracloud.org):
 1. Create project `alma10-v2-mainline-kernel`.
 2. Enable chroots: `epel-10-x86_64` (builders are v3 hosts, but output is forced to v2 via CFLAGS/config — see spec).
-3. Add package SCM: clone URL of this repo, spec `packaging/kernel-mainline-v2.spec`, method `make_srpm` (uses `.copr/Makefile`), check `webhook rebuild`.
+3. Add package SCM: clone URL of this repo, spec `packaging/elrepo/kernel-ml-*.spec` (currently `packaging/elrepo/kernel-ml-7.2.spec`), method `make_srpm` (uses `.copr/Makefile`), check `webhook rebuild`.
 4. Settings → Integrations: copy webhook URL → GitHub repo Settings → Webhooks → Add (pushes + tag creation, `application/json`).
 
 ## Fast trimmed build (this PC only)
