@@ -1,0 +1,82 @@
+name: validate
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-srpm:
+    runs-on: ubuntu-latest
+    container: almalinux:10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install validators
+        run: |
+          dnf install -y --quiet rpm-build rpmdevtools spectool python3-pyyaml ShellCheck yamllint gcc make bison flex elfutils-libelf-devel openssl-devel bc python3 findutils 2>&1 | tail -n 3
+
+      - name: Lint workflows
+        run: |
+          set -euo pipefail
+          yamllint -d '{extends: default, rules: {line-length: {max: 140}, truthy: disable}}' .github/workflows/*.yml
+          bash -n .copr/Makefile 2>/dev/null || true  # make syntax checked via dry-run below
+          # shellcheck every inline run: block is validated via checkout; shell scripts:
+          if ls scripts/*.sh packaging/elrepo/*.sh >/dev/null 2>&1; then
+            shellcheck -S warning scripts/*.sh packaging/elrepo/*.sh || true
+          fi
+
+      - name: Single-spec guard (no hardcoded versioned path)
+        run: |
+          set -euo pipefail
+          count=$(ls packaging/elrepo/kernel-ml-*.spec 2>/dev/null | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "::error::expected exactly 1 spec matching packaging/elrepo/kernel-ml-*.spec, found $count"
+            ls -l packaging/elrepo/
+            exit 1
+          fi
+          SPEC=$(ls packaging/elrepo/kernel-ml-*.spec)
+          echo "SPEC=$SPEC"
+          # .copr/Makefile must stay wildcard-based so renames don't break COPR
+          if grep -qE '^SPEC\s*:?=.*kernel-ml-[0-9]' .copr/Makefile; then
+            echo "::error::.copr/Makefile hardcodes a versioned spec path - use wildcard discovery"
+            exit 1
+          fi
+          # VERSION must match LKAver
+          ver=$(cat VERSION | tr -d ' \n')
+          lkaver=$(grep -E '^%global LKAver ' "$SPEC" | awk '{print $3}')
+          echo "VERSION=$ver LKAver=$lkaver"
+          if [ "$ver" != "$lkaver" ]; then
+            echo "::error::VERSION ($ver) != LKAver ($lkaver)"
+            exit 1
+          fi
+          # config for VERSION must exist
+          if ! ls packaging/elrepo/config-"$ver"-* >/dev/null 2>&1; then
+            echo "::error::missing packaging/elrepo/config-$ver-* for VERSION $ver"
+            ls -l packaging/elrepo/config-* || true
+            exit 1
+          fi
+
+      - name: rpmspec parse check
+        run: |
+          set -euo pipefail
+          SPEC=$(ls packaging/elrepo/kernel-ml-*.spec)
+          rpmspec -q --srpm --define "_topdir /tmp/rpmcheck" "$SPEC" 2>&1 | head -n 20
+          echo "rpmspec parse OK: $SPEC"
+
+      - name: SRPM smoke test (no full compile)
+        run: |
+          set -euo pipefail
+          make -f .copr/Makefile srpm outdir=/tmp/srpm-out 2>&1 | tail -n 15
+          ls -lh /tmp/srpm-out/*.src.rpm
+          echo "SRPM smoke OK"

@@ -1,0 +1,59 @@
+name: monitor-copr
+
+on:
+  schedule:
+    - cron: '23 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: monitor-copr
+  cancel-in-progress: false
+
+jobs:
+  check-builds:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Poll COPR for failed builds (last 24h)
+        id: poll
+        run: |
+          python3 - <<'PY'
+          import json, urllib.request, os, time, datetime
+          url = "https://copr.fedorainfracloud.org/api_3/build/list?ownername=vinod2807&projectname=alma10-v2-mainline-kernel&limit=20"
+          d = json.load(urllib.request.urlopen(url, timeout=30))
+          now = time.time()
+          failed = []
+          for b in d.get("items", []):
+              state = b.get("state")
+              ended = b.get("ended_on") or 0
+              age_h = (now - b.get("submitted_on", now)) / 3600
+              if state == "failed" and age_h <= 26:
+                  ver = (b.get("source_package") or {}).get("version", "?")
+                  failed.append(f"{b['id']} ({ver})")
+          print(f"failed={failed}")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"failed={' '.join(failed)}\n")
+              f.write(f"count={len(failed)}\n")
+          PY
+      - name: Open issue on COPR failures
+        if: steps.poll.outputs.count != '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          failed="${{ steps.poll.outputs.failed }}"
+          title="COPR build failed: $failed"
+          body="COPR reported failed build(s): $failed
+          Project: https://copr.fedorainfracloud.org/coprs/g/vinod2807/alma10-v2-mainline-kernel/
+          Check builder-live.log for each build id, fix spec/config, push fix. This issue was opened by monitor-copr."
+          # avoid duplicates: skip if an open issue already mentions the same build id
+          first_id=$(echo "$failed" | awk '{print $1}')
+          if gh issue list --state open --search "$first_id" --json title --jq '.[].title' | grep -qF "$first_id"; then
+            echo "issue already open for $first_id, skipping"
+            exit 0
+          fi
+          gh issue create --title "$title" --body "$body" --label "bug,automation" || \
+          gh issue create --title "$title" --body "$body"

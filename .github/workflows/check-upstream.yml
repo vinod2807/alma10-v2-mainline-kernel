@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 concurrency:
   group: check-upstream
@@ -15,6 +16,9 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    outputs:
+      bumped: ${{ steps.cmp.outputs.bump }}
+      version: ${{ steps.korg.outputs.latest }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,9 +27,19 @@ jobs:
         id: korg
         run: |
           python3 - <<'PY'
-          import json, urllib.request, os
+          import json, urllib.request, os, time
           url = "https://www.kernel.org/releases.json"
-          d = json.load(urllib.request.urlopen(url, timeout=30))
+          last = None
+          for attempt in range(3):
+              try:
+                  d = json.load(urllib.request.urlopen(url, timeout=30))
+                  break
+              except Exception as e:
+                  last = e
+                  print(f"attempt {attempt+1} failed: {e}")
+                  time.sleep(5)
+          else:
+              raise SystemExit(f"kernel.org fetch failed: {last}")
           stable = [r for r in d["releases"] if r.get("moniker") == "stable"]
           if not stable:
               raise SystemExit("no stable release found in releases.json")
@@ -45,6 +59,7 @@ jobs:
             echo "bump=false" >> "$GITHUB_OUTPUT"
           fi
       - name: Bump VERSION, commit and tag
+        id: bump
         if: steps.cmp.outputs.bump == 'true'
         run: |
           set -euo pipefail
@@ -54,7 +69,6 @@ jobs:
           echo "bumping $cur -> $ver"
 
           # 1. Discover spec dynamically - never hardcode the filename.
-          #    Supports packaging/elrepo/kernel-ml-*.spec renames (e.g. 7.2 -> 7.3).
           specs=(packaging/elrepo/kernel-ml-*.spec)
           if [ ! -f "${specs[0]}" ]; then
             echo "::error::no spec found matching packaging/elrepo/kernel-ml-*.spec"
@@ -66,6 +80,12 @@ jobs:
           fi
           SPEC="${specs[0]}"
           echo "SPEC=$SPEC"
+
+          # 1b. Guard: .copr/Makefile must stay wildcard-based.
+          if grep -qE '^SPEC\s*:?=.*kernel-ml-[0-9]' .copr/Makefile; then
+            echo "::error::.copr/Makefile hardcodes a versioned spec - use wildcard discovery"
+            exit 1
+          fi
 
           # 2. ELRepo spec tracks version via '%global LKAver', not 'Version:'.
           if ! grep -qE '^%global LKAver ' "$SPEC"; then
@@ -82,7 +102,6 @@ jobs:
           grep -E '^Source0:' "$SPEC"
 
           # 4. Roll config files forward: config-<old>-* -> config-<new>-*.
-          #    Build requires config-%{version}-x86_64, so a missing rename breaks COPR.
           rolled=""
           for f in packaging/elrepo/config-"$cur"-*; do
             [ -e "$f" ] || continue
@@ -92,13 +111,9 @@ jobs:
               rolled="$rolled $new"
             fi
           done
-          # Fallback: if old-versioned config didn't exist (manual layout drift),
-          # copy the newest config-*-x86_64 as the new version.
           if [ -z "$rolled" ] && ! ls packaging/elrepo/config-"$ver"-* >/dev/null 2>&1; then
             latest_cfg=$(ls -1 packaging/elrepo/config-*-x86_64 2>/dev/null | sort -V | tail -n1 || true)
             if [ -n "$latest_cfg" ]; then
-              arch_suffix="${latest_cfg##*/config-*-}"
-              # arch_suffix extraction above is best-effort; default to x86_64
               cp -v "$latest_cfg" "packaging/elrepo/config-$ver-x86_64"
             else
               echo "::error::no config file to roll forward for $ver"
@@ -107,13 +122,36 @@ jobs:
           fi
           ls -l packaging/elrepo/config-"$ver"-* || { echo "::error::missing config for $ver after roll"; exit 1; }
 
+          # 4b. Heal config via olddefconfig (best-effort, never blocks the bump).
+          # New kernels may introduce CONFIG_* options; fill defaults so the
+          # spec's listnewconfig guard doesn't fail the 2h COPR build later.
+          if ! command -v make >/dev/null 2>&1; then
+            sudo apt-get update -qq && sudo apt-get install -y -qq gcc make bison flex libelf-dev bc openssl 2>&1 | tail -n 2 || true
+          fi
+          (
+            set +e
+            tmp=$(mktemp -d)
+            trap 'rm -rf "$tmp"' EXIT
+            cfg="packaging/elrepo/config-$ver-x86_64"
+            major="${ver%%.*}"
+            url="https://cdn.kernel.org/pub/linux/kernel/v${major}.x/linux-${ver}.tar.xz"
+            echo "healing $cfg with $url"
+            curl -sL --retry 3 -o "$tmp/linux.tar.xz" "$url" \
+              && tar -xf "$tmp/linux.tar.xz" -C "$tmp" \
+              && srcdir=$(echo "$tmp"/linux-*/ | head -n1) \
+              && cp "$cfg" "$srcdir/.config" \
+              && make -C "$srcdir" ARCH=x86_64 olddefconfig >/dev/null 2>&1 \
+              && cp "$srcdir/.config" "$cfg" \
+              && echo "config healed via olddefconfig" \
+              || echo "::warning::olddefconfig heal skipped/failed - keeping rolled config as-is"
+          )
+
           # 5. Validate before committing.
           grep -qF "%global LKAver $ver" "$SPEC"
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add VERSION "$SPEC" packaging/elrepo/config-"$ver"-*
-          # Also pick up a spec rename if a future bump renames the file.
           git add -A packaging/elrepo || true
           if git diff --cached --quiet; then
             echo "nothing to commit"
@@ -128,3 +166,52 @@ jobs:
           git pull --rebase origin main || true
           git push origin HEAD:main
           git push origin "v$ver" || true
+          echo "pushed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Cancel superseded COPR builds (keep newest)
+        if: steps.bump.outputs.pushed == 'true'
+        env:
+          COPR_LOGIN: ${{ secrets.COPR_LOGIN }}
+          COPR_TOKEN: ${{ secrets.COPR_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${COPR_LOGIN:-}" ] || [ -z "${COPR_TOKEN:-}" ]; then
+            echo "::warning::COPR_LOGIN/COPR_TOKEN secrets not set - skipping auto-cancel. Add them to enable."
+            exit 0
+          fi
+          pip install -q copr-cli
+          mkdir -p ~/.config
+          printf '[copr-cli]\nlogin = %s\nusername = vinod2807\ntoken = %s\ncopr_url = https://copr.fedorainfracloud.org\n' "$COPR_LOGIN" "$COPR_TOKEN" > ~/.config/copr
+          chmod 600 ~/.config/copr
+          ver="${{ steps.korg.outputs.latest }}"
+          python3 - <<PY
+          import json, subprocess, urllib.request
+          url = "https://copr.fedorainfracloud.org/api_3/build/list?ownername=vinod2807&projectname=alma10-v2-mainline-kernel&limit=10"
+          d = json.load(urllib.request.urlopen(url, timeout=30))
+          running = [b for b in d.get("items", []) if b.get("state") == "running"]
+          # keep newest running build, cancel older ones for the same version
+          same = sorted([b for b in running if b.get("source_package", {}).get("version", "").startswith("${ver}")], key=lambda b: b["id"])
+          for b in same[:-1]:
+              print(f"cancelling superseded build {b['id']}")
+              subprocess.run(["copr-cli", "cancel", str(b["id"])], check=False)
+          print(f"kept newest: {[b['id'] for b in same[-1:]]}, total running: {len(running)}")
+          PY
+
+  notify-on-failure:
+    needs: [check]
+    if: failure()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open issue on check-upstream failure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          run_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          title="check-upstream failed: $(date -u +%F)"
+          if gh issue list --search "$title" --state open --json number --jq length | grep -q '^0'; then
+            gh issue create --title "$title" --body "Run failed: $run_url — check bump step logs, fix, re-run workflow_dispatch." --label "bug,automation" || \
+            gh issue create --title "$title" --body "Run failed: $run_url"
+          else
+            echo "issue already open, skipping"
+          fi
