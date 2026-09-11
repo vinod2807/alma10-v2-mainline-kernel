@@ -25,7 +25,7 @@
 
 # Define the version of the Linux Kernel Archive tarball.
 
-%global LKAver 7.2.4
+%global LKAver 7.2.5
 
 # Define the buildid, if required.
 #global buildid .local
